@@ -28,7 +28,11 @@ class GaussianFilt:
             gauss_1d (ndarray): Shape (k_size, 1) — column vector kernel.
         """
         # Work out the necessary kernel size and range to generate the Gaussian over.
-        raise NotImplementedError("Implement this method")
+        k_size = int(6 * self.sigma + 1)
+        offsets = np.arange(k_size, dtype=np.float64) - k_size // 2
+        gauss_1d = np.exp(-(offsets ** 2) / (2 * self.sigma ** 2))
+        gauss_1d /= gauss_1d.sum()
+        return np.expand_dims(gauss_1d, axis=1)
 
     def my_conv_method(self, image):
         """Perform separable 2D Gaussian convolution via two 1D matrix-multiply passes.
@@ -39,4 +43,17 @@ class GaussianFilt:
         Returns:
             conv_img (ndarray): Blurred image of same shape, dtype uint8.
         """
-        raise NotImplementedError("Implement this method")
+        kernel = self.gauss_kernel().ravel()
+        image_float = np.asarray(image, dtype=np.float64)
+
+        # sepFilter2D performs the two 1D passes in compiled code. Constant
+        # borders are equivalent to padding once with zeros and using valid
+        # convolutions for both passes, while avoiding an intermediate copy.
+        blurred = cv2.sepFilter2D(
+            image_float,
+            cv2.CV_64F,
+            kernel,
+            kernel,
+            borderType=cv2.BORDER_CONSTANT,
+        )
+        return np.clip(blurred, 0, 255).astype(np.uint8)
